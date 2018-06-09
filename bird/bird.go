@@ -81,7 +81,9 @@ func (self *Bird) createEgg(eggid string, egg *Egg) error {
 	if egg.TTL > 0 {
 		pipe.Expire(headerskey, time.Second*time.Duration(egg.TTL))
 	}
-	pipe.Set(bodykey, egg.Body, time.Second*time.Duration(egg.TTL))
+	if egg.Body != "" {
+		pipe.Set(bodykey, egg.Body, time.Second*time.Duration(egg.TTL))
+	}
 	pipe.Set(statuscodekey, egg.StatusCode, time.Second*time.Duration(egg.TTL))
 	_, err := pipe.Exec()
 	if err != nil {
