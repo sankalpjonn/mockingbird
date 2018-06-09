@@ -17,7 +17,8 @@ $ curl -X POST \
           "mockheader2": "mockvalue2"
   	},
   	"status_code": 200,
-  	"body": "awesome!!!"
+  	"body": "awesome!!!",
+      "ttl": 120
   }'
 ```
 
