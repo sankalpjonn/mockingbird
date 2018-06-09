@@ -65,7 +65,7 @@ Use [`go get`](https://golang.org/cmd/go/#hdr-Download_and_install_packages_and_
 $ go get -u github.com/sankalpjonn/mockingbird/...
 ```
 
-Redis needs to be installed and running locally. To install redis, refer to [`this`]("https://redis.io/topics/quickstart")
+Redis needs to be installed and running locally. Refer to [`this`](https://redis.io/topics/quickstart) to install redis
 
 ## Usage
 
