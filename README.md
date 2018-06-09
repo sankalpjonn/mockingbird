@@ -74,6 +74,12 @@ $ sudo apt install redis-server
 $ sudo service redis-server start
 ```
 
+You can even run the docker image. If you do this, you do not have to install redis. To run the docker image run
+
+```
+$ make run
+```
+
 ## Usage
 
 From the command line, `mockingbird` can be run by providing the host. Default is 0.0.0.0:8000
