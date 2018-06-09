@@ -68,6 +68,10 @@ $ go get -u github.com/sankalpjonn/mockingbird/...
 ```
 
 Redis needs to be installed and running locally. Refer to [`this`](https://redis.io/topics/quickstart) to install redis
+or run
+```sh
+$ sudo apt install redis-server
+```
 
 ## Usage
 
