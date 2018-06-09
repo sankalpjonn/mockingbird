@@ -1,26 +1,26 @@
 package main
 
 import (
-  "net/http"
-  "log"
-  "os"
+	"flag"
+	"log"
+	"net/http"
 
-  "github.com/mockingbird/bird"
-  "github.com/gorilla/mux"
+	"github.com/gorilla/mux"
+	"github.com/sankalpjonn/mockingbird/bird"
 )
 
 func main() {
-  r := mux.NewRouter()
-  bird := bird.New()
+	r := mux.NewRouter()
+	bird := bird.New()
+	host := flag.String("host", "0.0.0.0:8000", "ip:port")
+	flag.Parse()
 
 	r.HandleFunc("/egg", bird.CreateHandler).Methods("POST")
 	r.HandleFunc("/egg/{eggId}", bird.GetHandler).Methods("POST", "GET", "PUT", "HEAD", "PATCH")
-
 	srv := &http.Server{
 		Handler: r,
-		Addr:    os.Args[1],
+		Addr:    *host,
 	}
-
 	/***** Do not use Fatal anywhere else ********/
 	// I don't know who you are. I don't know what you want. If you are looking
 	// to use "log.Fatal", I can tell you I don't know you. But what I do have

@@ -7,14 +7,14 @@ import (
 
 var (
 	testEggId = "test"
-	testEgg = &Egg{
+	testEgg   = &Egg{
 		Headers: map[string]string{
-			"Content-Type": "application/json",
+			"Content-Type":    "application/json",
 			"X-Forwarded-For": "1.1.1.1",
 		},
-		Body: "awesome!",
+		Body:       "awesome!",
 		StatusCode: 204,
-		TTL: 10,
+		TTL:        10,
 	}
 )
 
