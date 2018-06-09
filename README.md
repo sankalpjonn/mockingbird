@@ -9,15 +9,16 @@
 ```sh
 $ curl -X POST \
   http://localhost:8000/egg \
-  -d '{
-	"headers": {
-		"Content-Type": "application/json",
-		"mockheader1": "mockvalue1",
-    "mockheader2": "mockvalue2"
-	},
-	"status_code": 200,
-	"body": "awesome!!!"
-}'
+  -d '
+    {
+  	"headers": {
+  		"Content-Type": "application/json",
+  		"mockheader1": "mockvalue1",
+          "mockheader2": "mockvalue2"
+  	},
+  	"status_code": 200,
+  	"body": "awesome!!!"
+  }'
 ```
 
 ### Response
