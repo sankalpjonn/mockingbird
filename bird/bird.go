@@ -11,7 +11,6 @@ import (
 	"github.com/asaskevich/govalidator"
 	"github.com/go-redis/redis"
 	"github.com/gorilla/mux"
-	"github.com/satori/go.uuid"
 )
 
 const (
@@ -24,13 +23,6 @@ const (
 	EGG_BODY_KEY        = "egg:%s:body"
 	EGG_STATUS_CODE_KEY = "egg:%s:statuscode"
 )
-
-type Egg struct {
-	Headers    map[string]string `json:"headers" valid:"required"`
-	Body       string            `json:"body" valid:"-"`
-	StatusCode int               `json:"status_code" valid:"required"`
-	TTL        int               `json:"ttl" valid:"-"`
-}
 
 type Bird struct {
 	store *redis.Client
@@ -53,37 +45,41 @@ func (self *Bird) getEgg(eggid string) (error, *Egg) {
 	body := pipe.Get(fmt.Sprintf(EGG_BODY_KEY, eggid))
 	statuscode := pipe.Get(fmt.Sprintf(EGG_STATUS_CODE_KEY, eggid))
 	_, err := pipe.Exec()
+	if err != nil {
+		panic(err)
+	}
+
 	if statuscode.Val() == "" {
 		return errors.New("No egg found with this id"), nil
 	}
 	statuscodeint, err := strconv.Atoi(statuscode.Val())
+	if err != nil {
+		panic(err)
+	}
 
-	if err != nil {
-		panic(err)
-	}
-	if err != nil {
-		panic(err)
-	}
 	return nil, &Egg{
+		Id:         eggid,
 		Headers:    headers.Val(),
 		Body:       body.Val(),
 		StatusCode: statuscodeint,
 	}
 }
 
-func (self *Bird) createEgg(eggid string, egg *Egg) error {
+func (self *Bird) createEgg(egg *Egg) {
 	pipe := self.store.Pipeline()
-	headerskey := fmt.Sprintf(EGG_HEADERS_KEY, eggid)
-	bodykey := fmt.Sprintf(EGG_BODY_KEY, eggid)
-	statuscodekey := fmt.Sprintf(EGG_STATUS_CODE_KEY, eggid)
+	headerskey := fmt.Sprintf(EGG_HEADERS_KEY, egg.Id)
+	bodykey := fmt.Sprintf(EGG_BODY_KEY, egg.Id)
+	statuscodekey := fmt.Sprintf(EGG_STATUS_CODE_KEY, egg.Id)
 	headers := map[string]interface{}{}
 	for k, v := range egg.Headers {
 		headers[k] = v
 	}
 
-	pipe.HMSet(headerskey, headers)
-	if egg.TTL > 0 {
-		pipe.Expire(headerskey, time.Second*time.Duration(egg.TTL))
+	if egg.Headers != nil {
+		pipe.HMSet(headerskey, headers)
+		if egg.TTL > 0 {
+			pipe.Expire(headerskey, time.Second*time.Duration(egg.TTL))
+		}
 	}
 	if egg.Body != "" {
 		pipe.Set(bodykey, egg.Body, time.Second*time.Duration(egg.TTL))
@@ -93,7 +89,6 @@ func (self *Bird) createEgg(eggid string, egg *Egg) error {
 	if err != nil {
 		panic(err)
 	}
-	return err
 }
 
 func (self *Bird) WriteResponse(w http.ResponseWriter, rawres []byte, err error) {
@@ -106,35 +101,47 @@ func (self *Bird) WriteResponse(w http.ResponseWriter, rawres []byte, err error)
 }
 
 func (self *Bird) CreateHandler(w http.ResponseWriter, r *http.Request) {
-	e, err := uuid.NewV4()
-	eggid := fmt.Sprintf("%s", e)
-
-	if err != nil {
-		self.WriteResponse(w, nil, err)
-		return
-	}
-
+	// decode request
 	egg := &Egg{}
 	if err := json.NewDecoder(r.Body).Decode(egg); err != nil {
 		self.WriteResponse(w, nil, err)
 		return
 	}
 
+	// validate request
 	if _, err := govalidator.ValidateStruct(egg); err != nil {
 		self.WriteResponse(w, nil, err)
 		return
 	}
 
-	err = self.createEgg(eggid, egg)
+	// make egg
+	egg.initialize()
+	self.createEgg(egg)
+
+	// send response
+	response := `
+	{
+      "egg_id": "` + egg.Id + `"
+  	}
+  	`
+	self.WriteResponse(w, []byte(response), nil)
+}
+
+func (self *Bird) GetRawHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	eggid := vars["eggId"]
+
+	err, egg := self.getEgg(eggid)
 	if err != nil {
 		self.WriteResponse(w, nil, err)
 		return
 	}
-
-	response := `{
-      "egg_id": "` + eggid + `"
-  }`
-	self.WriteResponse(w, []byte(response), nil)
+	res, err := json.Marshal(egg)
+	if err != nil {
+		panic(err)
+	}
+	w.WriteHeader(200)
+	w.Write(res)
 }
 
 func (self *Bird) GetHandler(w http.ResponseWriter, r *http.Request) {
