@@ -11,4 +11,4 @@ image:
 	docker build -t mockingbird:$(tag) .
 
 run: image
-	docker run --rm -p 8000:8000 -d mockingbird:$(tag)
+	docker run -p 8000:8000 -d mockingbird:$(tag)
