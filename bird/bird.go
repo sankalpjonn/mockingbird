@@ -44,11 +44,7 @@ func (self *Bird) getEgg(eggid string) (error, *Egg) {
 	headers := pipe.HGetAll(fmt.Sprintf(EGG_HEADERS_KEY, eggid))
 	body := pipe.Get(fmt.Sprintf(EGG_BODY_KEY, eggid))
 	statuscode := pipe.Get(fmt.Sprintf(EGG_STATUS_CODE_KEY, eggid))
-	_, err := pipe.Exec()
-	if err != nil {
-		panic(err)
-	}
-
+	pipe.Exec()
 	if statuscode.Val() == "" {
 		return errors.New("No egg found with this id"), nil
 	}
