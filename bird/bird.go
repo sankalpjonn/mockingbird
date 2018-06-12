@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/asaskevich/govalidator"
 	"github.com/go-redis/redis"
 	"github.com/gorilla/mux"
+	"github.com/sankalpjonn/mockingbird/validator"
 )
 
 const (
@@ -105,7 +105,7 @@ func (self *Bird) CreateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// validate request
-	if _, err := govalidator.ValidateStruct(egg); err != nil {
+	if err := validator.ValidateRequest(*egg); err != nil {
 		self.WriteResponse(w, nil, err)
 		return
 	}
