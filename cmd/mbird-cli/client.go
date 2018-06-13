@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+type Egg struct {
+	Id string `json:"egg_id"`
+}
+
 type client struct {
 	headers      Headers
 	bodyFilePath string
@@ -112,7 +116,13 @@ func (self *client) createEgg() (string, error) {
 
 	defer res.Body.Close()
 	body, _ := ioutil.ReadAll(res.Body)
-	return string(body), nil
+	egg := &Egg{}
+	err = json.Unmarshal(body, egg)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("http://%s/egg/%s", self.server, egg.Id), nil
 }
 
 func (self *client) callServer() string {
