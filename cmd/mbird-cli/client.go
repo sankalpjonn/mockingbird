@@ -122,7 +122,7 @@ func (self *client) createEgg() (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("http://%s/egg/%s", self.server, egg.Id), nil
+	return fmt.Sprintf("------------\n\nhttp://%s/egg/%s\n\n------------", self.server, egg.Id), nil
 }
 
 func (self *client) callServer() string {

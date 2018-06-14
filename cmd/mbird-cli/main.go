@@ -7,5 +7,5 @@ import (
 func main() {
 	client := New()
 	response := client.callServer()
-	fmt.Println("\n------\n" + response + "\n------\n")
+	fmt.Println(response)
 }
