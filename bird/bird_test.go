@@ -6,8 +6,8 @@ import (
 )
 
 var (
-	testEggId = "test"
-	testEgg   = &Egg{
+	testEgg = &Egg{
+		Id: "test",
 		Headers: map[string]string{
 			"Content-Type":    "application/json",
 			"X-Forwarded-For": "1.1.1.1",
@@ -20,15 +20,12 @@ var (
 
 func TestCreateEgg(*testing.T) {
 	b := New()
-	err := b.createEgg(testEggId, testEgg)
-	if err != nil {
-		panic(err)
-	}
+	b.createEgg(testEgg)
 }
 
 func TestGetEgg(t *testing.T) {
 	b := New()
-	err, egg := b.getEgg(testEggId)
+	err, egg := b.getEgg(testEgg.Id)
 	if err != nil {
 		panic(err)
 	}
