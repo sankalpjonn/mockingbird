@@ -5,6 +5,8 @@ code:
 	go vet -v github.com/sankalpjonn/mockingbird/...
 	go get -v github.com/sankalpjonn/mockingbird
 	go install github.com/sankalpjonn/mockingbird
+	go get -v github.com/sankalpjonn/mockingbird/cmd/mbird-cli
+	go install github.com/sankalpjonn/mockingbird/cmd/mbird-cli
 	exit 0
 
 image:

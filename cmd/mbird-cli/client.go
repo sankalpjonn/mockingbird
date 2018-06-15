@@ -1,20 +1,32 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 
+	"github.com/bogdanovich/dns_resolver"
 	"github.com/sankalpjonn/mockingbird/bird"
+	"github.com/tidwall/buntdb"
 	"gopkg.in/abiosoft/ishell.v2"
 	"gopkg.in/fatih/color.v1"
 )
+
+type Recording struct {
+	Headers    map[string]string
+	StatusCode int
+	Body       string
+}
 
 type client struct {
 	headers         Headers
@@ -112,52 +124,82 @@ func (self *client) createEgg(egg *bird.Egg) error {
 	return nil
 }
 
-func (self *client) generateEggFromRequest(r *http.Request) string {
-	return "abc"
+func (self *client) recordReqRes(db *buntdb.DB, r *http.Request, receiver chan *http.Response, done chan bool) {
+	res := <-receiver
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	res.Body.Close()
+	// TODO: write logic to record req/res into bunt db
+	body := ioutil.NopCloser(bytes.NewReader(b))
+	res.Body = body
+	done <- true
 }
 
-func (self *client) serveEgg(egg string, w http.ResponseWriter, r *http.Request) {
-
+func (self *client) setTransporter() {
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+		DualStack: true,
+	}
+	http.DefaultTransport.(*http.Transport).DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		remote := strings.Split(addr, ":")
+		resolver := dns_resolver.New([]string{"114.114.114.114", "114.114.115.115", "119.29.29.29", "223.5.5.5", "8.8.8.8", "208.67.222.222", "208.67.220.220", "1.1.1.1"})
+		resolver.RetryTimes = 5
+		ip, err := resolver.LookupHost(remote[0])
+		if err != nil {
+			panic(err)
+		}
+		addr = ip[0].String() + ":" + remote[1]
+		return dialer.DialContext(ctx, network, addr)
+	}
 }
 
-func (self *client) proxyFunc(w http.ResponseWriter, r *http.Request) {
+func (self *client) serveProxyServerResponse(w http.ResponseWriter, r *http.Request, receiver chan *http.Response, done chan bool) {
 	u, err := url.Parse(self.recDomain)
 	if err != nil {
-		w.Write([]byte(err.Error()))
-		return
+		panic(err)
 	}
-	if !self.isRecording {
-		// egg := self.generateEggFromRequest(r)
-		//
-		// urlStr := fmt.Sprintf("http://%s/egg/%s", self.server, egg)
-		// u, _ := url.Parse(urlStr)
-		// fmt.Println("GOT URL", u)
-		// // proxy := httputil.NewSingleHostReverseProxy(u)
-		// proxy := reverseproxy.NewReverseProxy(u)
-		// // req, _ := http.NewRequest("GET", urlStr, nil)
-		// // fmt.Println("REQ", req, w)
-		// proxy.ServeHTTP(w, req)
-		// fmt.Println("SERVED", u)
-	} else {
-		proxy := httputil.NewSingleHostReverseProxy(u)
-		proxy.ServeHTTP(w, r)
+	proxy := httputil.NewSingleHostReverseProxy(u)
+	proxy.Transport = &transport{http.DefaultTransport, receiver, done}
+	r.Host = u.Host
+	proxy.ServeHTTP(w, r)
+}
+
+func (self *client) proxyFuncHandler(db *buntdb.DB) func(http.ResponseWriter, *http.Request) {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		if !self.isRecording {
+			// TODO: write logic to serve request from saved responses from buntdb
+		} else {
+			self.setTransporter()
+			responseReceiver := make(chan *http.Response)
+			loggingDone := make(chan bool)
+			go self.recordReqRes(db, r, responseReceiver, loggingDone)
+			self.serveProxyServerResponse(w, r, responseReceiver, loggingDone)
+		}
 	}
+	return fn
 }
 
 func (self *client) startProxyServer() {
-	http.HandleFunc("/", self.proxyFunc)
+	db, err := buntdb.Open("mockingbird_recording.db")
+	if err != nil {
+		panic(err)
+	}
+	http.HandleFunc("/", self.proxyFuncHandler(db))
 	http.ListenAndServe(":"+self.proxyServerPort, nil)
 }
 
 func (self *client) newRecordingShell() error {
 	shell := ishell.New()
 
-	// display welcome info.
-	shell.Println("WELCOME TO THE MOCKING BIRD RECORDER!")
+	green := color.New(color.FgGreen).SprintFunc()
+	shell.Println(green("************************************\nWELCOME TO THE MOCKING BIRD RECORDER\n\nPlease enter `help` for assistance\n************************************"))
 
 	shell.AddCmd(&ishell.Cmd{
 		Name: "domain",
-		Help: "Set domain which will be proxied",
+		Help: "Set domain which will be proxied (http://<domain>.com or https://<domain>.com)",
 		Func: func(c *ishell.Context) {
 			if len(c.Args) < 1 {
 				red := color.New(color.FgRed).SprintFunc()
@@ -179,7 +221,7 @@ func (self *client) newRecordingShell() error {
 			}
 			self.isRecording = true
 			blue := color.New(color.FgBlue).SprintFunc()
-			c.Println(blue("started recording ..."))
+			c.Println(blue("started recording ...\n\nPlease use localhost:" + self.proxyServerPort + " to access " + self.recDomain + ".\n\nuse the `stop` command to stop recording"))
 		},
 	})
 
