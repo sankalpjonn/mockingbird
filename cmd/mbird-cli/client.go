@@ -17,7 +17,7 @@ import (
 
 	"github.com/bogdanovich/dns_resolver"
 	"github.com/sankalpjonn/mockingbird/bird"
-	"github.com/tidwall/buntdb"
+	"github.com/satori/go.uuid"
 	"gopkg.in/abiosoft/ishell.v2"
 	"gopkg.in/fatih/color.v1"
 )
@@ -124,14 +124,25 @@ func (self *client) createEgg(egg *bird.Egg) error {
 	return nil
 }
 
-func (self *client) recordReqRes(db *buntdb.DB, r *http.Request, receiver chan *http.Response, done chan bool) {
+func (self *client) recordReqRes(db *DB, r *http.Request, receiver chan *http.Response, done chan bool) {
 	res := <-receiver
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		panic(err)
 	}
 	res.Body.Close()
-	// TODO: write logic to record req/res into bunt db
+
+	uuid4, _ := uuid.NewV4()
+	data := Data{
+		Headers: map[string][]string(r.Header),
+		Body:    string(b),
+		Status:  res.StatusCode,
+		Id:      fmt.Sprintf("%s", uuid4),
+	}
+	collection := fmt.Sprintf("%s/%s/%s", self.recDomain, r.Method, r.URL.Path)
+
+	db.record(collection, data)
+
 	body := ioutil.NopCloser(bytes.NewReader(b))
 	res.Body = body
 	done <- true
@@ -167,11 +178,29 @@ func (self *client) serveProxyServerResponse(w http.ResponseWriter, r *http.Requ
 	proxy.ServeHTTP(w, r)
 }
 
-func (self *client) proxyFuncHandler(db *buntdb.DB) func(http.ResponseWriter, *http.Request) {
+func (self *client) proxyFuncHandler(db *DB) func(http.ResponseWriter, *http.Request) {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		if !self.isRecording {
-			// TODO: write logic to serve request from saved responses from buntdb
+			//When recording stops
+
+			collection := fmt.Sprintf("%s/%s/%s", self.recDomain, r.Method, r.URL.Path)
+			err, data := db.replayRandom(collection)
+			if err != nil {
+				panic(err)
+			}
+			for k, v := range data.Headers {
+				if len(v) > 0 {
+					w.Header().Add(k, strings.Join(v, ";"))
+				}
+			}
+			w.WriteHeader(data.Status)
+			if data.Body != "" {
+				w.Write([]byte(data.Body))
+			}
+
 		} else {
+
+			//When recording starts
 			self.setTransporter()
 			responseReceiver := make(chan *http.Response)
 			loggingDone := make(chan bool)
@@ -183,7 +212,7 @@ func (self *client) proxyFuncHandler(db *buntdb.DB) func(http.ResponseWriter, *h
 }
 
 func (self *client) startProxyServer() {
-	db, err := buntdb.Open("mockingbird_recording.db")
+	db, err := newDB("mockingbird_recordings")
 	if err != nil {
 		panic(err)
 	}
@@ -240,8 +269,11 @@ func (self *client) newRecordingShell() error {
 	return nil
 }
 
-func (self *client) callServer() (error, string) {
+func (self *client) runCmd() (error, string) {
+
 	if self.isCreate {
+
+		//========CREATE COMMAND BEGIN ========//
 		body, err := self.getBody()
 		if err != nil {
 			return err, ""
@@ -255,7 +287,11 @@ func (self *client) callServer() (error, string) {
 		}
 		self.createEgg(egg)
 		return nil, fmt.Sprintf("-------\n\nhttp://%s/egg/%s\n\n-------", self.server, egg.Id)
+		//========CREATE COMMAND END ========//
+
 	} else if self.isGet {
+
+		//========GET COMMAND BEGIN ========//
 		err, egg := self.getEgg(self.eggid)
 		if err != nil {
 			return err, ""
@@ -265,12 +301,18 @@ func (self *client) callServer() (error, string) {
 			return err, ""
 		}
 		return nil, string(b)
+		//========GET COMMAND END ========//
+
 	} else if self.isRecord {
+
+		//========RECORD COMMAND BEGIN ========//
 		err := self.newRecordingShell()
 		if err != nil {
 			return err, ""
 		}
 		return nil, ""
+		//========RECORD COMMAND END ========//
+
 	} else {
 		return errors.New("Please provide either -create or -get or -record in the flags"), ""
 	}

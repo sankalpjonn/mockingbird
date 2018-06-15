@@ -8,7 +8,7 @@ import (
 
 func main() {
 	client := New()
-	err, response := client.callServer()
+	err, response := client.runCmd()
 	if err != nil {
 		red := color.New(color.FgRed).SprintFunc()
 		fmt.Println(red("\nError: %s", err))
