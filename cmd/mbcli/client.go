@@ -134,12 +134,12 @@ func (self *client) recordReqRes(db *DB, r *http.Request, receiver chan *http.Re
 
 	uuid4, _ := uuid.NewV4()
 	data := Data{
-		Headers: map[string][]string(r.Header),
+		Headers: map[string][]string(res.Header),
 		Body:    string(b),
 		Status:  res.StatusCode,
 		Id:      fmt.Sprintf("%s", uuid4),
 	}
-	collection := fmt.Sprintf("%s/%s/%s", self.recDomain, r.Method, r.URL.Path)
+	collection := fmt.Sprintf("%s_%s_%s", strings.Replace(self.recDomain, "://", "_", -1), r.Method, strings.Replace(r.URL.Path, "/", "_", -1))
 
 	db.record(collection, data)
 
@@ -183,7 +183,7 @@ func (self *client) proxyFuncHandler(db *DB) func(http.ResponseWriter, *http.Req
 		if !self.isRecording {
 			//When recording stops
 
-			collection := fmt.Sprintf("%s/%s/%s", self.recDomain, r.Method, r.URL.Path)
+			collection := fmt.Sprintf("%s_%s_%s", strings.Replace(self.recDomain, "://", "_", -1), r.Method, strings.Replace(r.URL.Path, "/", "_", -1))
 			err, data := db.replayRandom(collection)
 			if err != nil {
 				panic(err)
