@@ -22,12 +22,12 @@ $ curl -X POST \
   }'
 ```
 
-For creating a mock, you can also use mbird-cli
+For creating a mock, you can also use mbcli
 
 ```sh
-go get -u github.com/sankalpjonn/mockingbird/cmd/mbird-cli/...
+go get -u github.com/sankalpjonn/mockingbird/cmd/mbcli/...
 
-mbird-cli -create -H "mockheader1=mockvalue1" -H "mockheader2=mockvalue2" -status 200 -body="awesome!!!" -ttl=120
+mbcli -create -H "mockheader1=mockvalue1" -H "mockheader2=mockvalue2" -status 200 -body="awesome!!!" -ttl=120
 ```
 
 ### Response
