@@ -63,7 +63,6 @@ $ curl http://localhost:8000/egg/5b70b541-7be3-4def-87c8-028cdc4e1141 -v
 awesome!!!
 ```
 
-
 ## Installation
 
 __Minimum Go version:__ Go 1.9
@@ -100,4 +99,60 @@ Available options:
 
 ```
   -host          run the server on this host (ip:port)
+```
+
+## Record and Playback
+
+Mockingbird can create stub mappings from requests it has received by proxying the actual API end point. This allows you to “record” stub mappings from interaction with existing APIs.
+
+To get started with the record feature, install the mocking bird client
+
+```sh
+go get -u github.com/sankalpjonn/mockingbird/cmd/mbcli/...
+```
+
+Then run
+```sh
+mbcli -record
+```
+
+You will be greeted with this and a shell will open
+************************************
+WELCOME TO THE MOCKING BIRD RECORDER
+
+Please enter `help` for assistance
+************************************
+Now set the domain that you want to record by running
+
+```sh
+>>> domain http://api.jsonbin.io
+```
+Now start recording all calls to this domain by runninng
+```sh
+>>> start
+started recording ...
+
+Please use localhost:8080 to access http://api.jsonbin.io.
+
+use the `stop` command to stop recording
+```
+
+Now make a request to the target API through Mockingbird proxy
+```sh
+curl -XGET 'http://localhost:8080/b/5b2be0376c6ba17a60dbddec'
+```
+No run stop
+```sh
+>>> stop
+stopped recording
+```
+You should see that a file has been created. Something like `http_api.jsonbin.io_GET__b_5b2be0376c6ba17a60dbddec` under the folder `mockingbird_recordings`. This indicates that a stub has been recorded and requesting the url again will serve the recorded result. You can verify this by switching off wifi before making the next request.
+
+```sh
+curl -XGET 'http://localhost:8080/b/5b2be0376c6ba17a60dbddec'
+
+{
+    "msg": "this is my first mockingbird recording"
+}
+
 ```
